@@ -109,7 +109,7 @@ void delete(HashTable *table, const char *key) {
    // key not found
 }
 
-// Display hash table
+// display hash table
 void display(HashTable *table) {
   printf("Hash-Table\t(Capacity: %d, Size: %d):\n", table->capacity,
          table->size);
@@ -129,7 +129,7 @@ void display(HashTable *table) {
   printf("\n");
   }
 }
-// Free the HashTable
+// free the HashTable
 void freeTable(HashTable *table) {
   for (int i = 0; i < table->capacity; i++) {
     Node *current = table->buckets[i];
@@ -146,8 +146,8 @@ void freeTable(HashTable *table) {
 // iterator structure
 typedef struct {
     HashTable *table;
-    int current_bucket;    // Which bucket we're in
-    Node *current_node;    // Which node in that bucket
+    int current_bucket;    // which bucket we're in
+    Node *current_node;    // which node in that bucket
 } Iterator;
 
 // create iterator
@@ -173,7 +173,7 @@ Iterator* createIterator(HashTable *table) {
 // get next key-value pair
 int iteratorNext(Iterator *it, char **key, int *value) {
     if (it->current_node == NULL) {
-        return 0;  // No more elements
+        return 0;  // no more elements
     }
 
     // return current node's data
@@ -235,7 +235,7 @@ void print_pair(char *key, int value) {
 int main() {
     HashTable* table = createTable(10);
 
-    // Insert some key-value pairs
+    // insert some key-value pairs
     insert(table, "John", 12345);
     insert(table, "Alice", 67890);
     insert(table, "Bob", 11111);
@@ -261,7 +261,7 @@ int main() {
     char *key;
     int value;
 
-    // Iterate through ALL pairs
+    // iterate through ALL pairs
     while (iteratorNext(it, &key, &value)) {
         printf("Key: '%s', Value: %d\n", key, value);
     }
