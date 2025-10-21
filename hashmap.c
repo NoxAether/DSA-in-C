@@ -1,97 +1,279 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
-// hashtable
-typedef struct DATA {
-    int key;
-    int value;
-} Data;
+// HashMap with linked lists
 
-// global data array
-Data *array;
-// can store
-int capacity = 10;
-// current amount stored
-int size = 0;
+// node in linked list
+typedef struct Node {
+  char *key;
+  int value;
+  struct Node *next;
+} Node;
 
-// returns the unique hash code to given key
-int hashcode(int key) { return (key % capacity); }
+// hash table
+typedef struct {
+  Node **buckets; // array of linked list heads.
+  int capacity; // number of buckets
+  int size; // total key-value pairs
+} HashTable;
 
-// check if given input is prime or not
-int if_prime(int n) {
-    int i;
-    if (n == 1 || n == 0)
-        return 0;
-    for (i = 2; i < n; i++) {
-        if (n % i == 0)
-            return 0;
+// create a new node
+Node *createNode(const char *key, int value) {
+  Node *node = (Node *)malloc(sizeof(Node));
+  node->key = strdup(key);
+  node->value = value;
+  node->next = NULL;
+  return node;
+}
+// free a node
+void freeNode(Node *node) {
+  free(node->key);
+  free(node);
+}
+// Create hash table
+HashTable *createTable(int capacity) {
+  HashTable *table = (HashTable *)malloc(sizeof(HashTable));
+  table->capacity = capacity;
+  table->size = 0;
+  table->buckets = (Node **)calloc(capacity, sizeof(Node*)); // all NULL
+  return table;
+}
+
+unsigned int hash(const char *key, int capacity) {
+  unsigned long hash = 5381;
+  int c;
+
+  while ((c = *key++))
+    hash = ((hash << 5) + hash) + c; // hash * 33 + c
+  return hash % capacity;
+}
+// insert key-value pair
+void insert(HashTable *table, const char *key, int value) {
+  unsigned int index = hash(key, table->capacity);
+  Node *head = table->buckets[index];
+
+  // check if key already exists
+  Node *current = head;
+  while (current) {
+    if (strcmp(current->key, key) == 0) {
+      // key exists so update
+      current->value = value;
+      return;
     }
-    return 1;
+    current = current->next;
+  }
+  // key does not exist
+  Node *node = createNode(key, value);
+  node->next = table->buckets[index]; // point to old head
+  table->buckets[index] = node; // become new head
+  table->size++;
 }
 
-// returns prime number just greater than arr cap.
-int get_prime(int n) {
-    if (n % 2 == 0)
-        n++;
-    for (; !if_prime(n); n += 2)
-        ;
-    return n;
-}
+// search for a key - returns value or -1 if not found
+int search(HashTable *table, const char *key) {
+  unsigned int index = hash(key, table->capacity);
+  Node *current = table->buckets[index];
 
-void init_array() {
-    int i;
-    capacity = get_prime(capacity);
-    array = (Data *)malloc(capacity * sizeof(Data));
-    for (i = 0; i < capacity; i++) {
-        array[i].key = 0;
-        array[i].value = 0;
+  while (current) {
+    if (strcmp(current->key, key) == 0) {
+      return current->value; // found
     }
-}
-// insert
-void insert(int key) {
-    int index = hashcode(key);
-    if (array[index].value == 0) {
-        // key not present, insert it
-        array[index].key = key;
-        array[index].value = 1;
-        size++;
-        printf("\n Key '%d' has been inserted \n", key);
-    } else if (array[index].key == key) {
-        // updating already existing key
-        printf("\n Key '%d' already present, updating its value \n", key);
-        array[index].value += 1;
-    } else {
-        // key cannot be inserted as the index is already containing some other
-        // key
-        printf("\n ELEMENT CANNOT BE INSERTED \n");
-    }
+    current = current->next;
+  }
+  return -1; // not found
 }
 
-// delete
-void delete(int key) {
-    int index = hashcode(key);
-    if (array[index].value == 0)
-        printf("\n This key does not exist");
+// delete a key value pair
+void delete(HashTable *table, const char *key) {
+   unsigned int index = hash(key, table->capacity);
+   Node *current = table->buckets[index];
+   Node *prev = NULL;
+
+   while (current) {
+     if (strcmp(current->key, key) == 0) {
+       if (prev == NULL) {
+         // deleting head of list
+         table->buckets[index] = current->next;
+       } else {
+         // deleting from middle/end
+         prev->next = current->next;
+       }
+       freeNode(current);
+       table->size--;
+       return;
+     }
+     prev = current;
+     current = current->next;
+   }
+   // key not found
+}
+
+// Display hash table
+void display(HashTable *table) {
+  printf("Hash-Table\t(Capacity: %d, Size: %d):\n", table->capacity,
+         table->size);
+  for (int i = 0; i < table->capacity; i++) {
+    printf(" Bucket[%d]: ", i);
+    Node *current = table->buckets[i];
+    if (!current)
+      printf("EMPTY");
     else {
-        array[index].key = 0;
-        array[index].value = 0;
-        size--;
-        printf("\n Key '%d' has been removed", key);
+      while (current != NULL) {
+        printf("{%s:%d}", current->key, current->value);
+        if (current->next)
+          printf(" -> ");
+      current = current->next;
+      }
     }
+  printf("\n");
+  }
 }
-// display
-void display() {
-    int i;
-    for (i = 0; i < capacity; i++) {
-        if (array[i].value == 0)
-            printf("\n Array [%d] has no elements");
-        else
-            printf("\n array [%d] has elements -: \n key(%d) and value(%d) \t",
-                   i, array[i].key, array[i].value);
+// Free the HashTable
+void freeTable(HashTable *table) {
+  for (int i = 0; i < table->capacity; i++) {
+    Node *current = table->buckets[i];
+    while (current) {
+      Node *tmp = current;
+      current = current->next;
+      freeNode(tmp);
     }
+  }
+  free(table->buckets);
+  free(table);
 }
-// size
-int get_size() { return size; }
-// search
 
-int main(void) {}
+// iterator structure
+typedef struct {
+    HashTable *table;
+    int current_bucket;    // Which bucket we're in
+    Node *current_node;    // Which node in that bucket
+} Iterator;
+
+// create iterator
+Iterator* createIterator(HashTable *table) {
+    Iterator *it = (Iterator*)malloc(sizeof(Iterator));
+    it->table = table;
+    it->current_bucket = 0;
+    it->current_node = NULL;
+
+    // find first non-empty bucket
+    while (it->current_bucket < table->capacity &&
+           table->buckets[it->current_bucket] == NULL) {
+        it->current_bucket++;
+    }
+
+    if (it->current_bucket < table->capacity) {
+        it->current_node = table->buckets[it->current_bucket];
+    }
+
+    return it;
+}
+
+// get next key-value pair
+int iteratorNext(Iterator *it, char **key, int *value) {
+    if (it->current_node == NULL) {
+        return 0;  // No more elements
+    }
+
+    // return current node's data
+    *key = it->current_node->key;
+    *value = it->current_node->value;
+
+    // move to next node
+    it->current_node = it->current_node->next;
+
+    // if we reached end of current bucket, find next non-empty bucket
+    while (it->current_node == NULL) {
+        it->current_bucket++;
+        if (it->current_bucket >= it->table->capacity) {
+            break;  // reached end of table
+        }
+        it->current_node = it->table->buckets[it->current_bucket];
+    }
+
+    return 1;  // success
+}
+
+// free iterator
+void freeIterator(Iterator *it) {
+    free(it);
+}
+
+// reset iterator to beginning
+void iteratorReset(Iterator *it) {
+    it->current_bucket = 0;
+    it->current_node = NULL;
+
+    // find first non-empty bucket
+    while (it->current_bucket < it->table->capacity &&
+           it->table->buckets[it->current_bucket] == NULL) {
+        it->current_bucket++;
+    }
+
+    if (it->current_bucket < it->table->capacity) {
+        it->current_node = it->table->buckets[it->current_bucket];
+    }
+}
+
+void step_through(Iterator *it, int steps, void (*callback)(char*, int)) {
+    char *key;
+    int value;
+
+    for (int i = 0; i < steps && iteratorNext(it, &key, &value); i++) {
+        if (callback != NULL) {
+            callback(key, value);
+        }
+    }
+}
+
+// example callback function
+void print_pair(char *key, int value) {
+    printf("Stepped to: {%s: %d}\n", key, value);
+}
+
+int main() {
+    HashTable* table = createTable(10);
+
+    // Insert some key-value pairs
+    insert(table, "John", 12345);
+    insert(table, "Alice", 67890);
+    insert(table, "Bob", 11111);
+    insert(table, "Sara", 22222);
+
+    printf("=== Initial Table ===\n");
+    display(table);
+
+    printf("\n=== Search Tests ===\n");
+    printf("John's value: %d\n", search(table, "John"));
+    printf("Alice's value: %d\n", search(table, "Alice"));
+    printf("Unknown key: %d\n", search(table, "Unknown"));
+
+    printf("\n=== Update John's Value ===\n");
+    insert(table, "John", 77777);  // Update existing key
+    printf("John's updated value: %d\n", search(table, "John"));
+
+    printf("\n=== Delete Bob ===\n");
+    delete(table, "Bob");
+    display(table);
+
+    Iterator *it = createIterator(table);
+    char *key;
+    int value;
+
+    // Iterate through ALL pairs
+    while (iteratorNext(it, &key, &value)) {
+        printf("Key: '%s', Value: %d\n", key, value);
+    }
+
+    printf("\n=== Reset and Iterate Again ===\n");
+    iteratorReset(it);
+
+    while (iteratorNext(it, &key, &value)) {
+        printf("Key: '%s', Value: %d\n", key, value);
+    }
+
+    freeIterator(it);
+    freeTable(table);
+    return 0;
+}
